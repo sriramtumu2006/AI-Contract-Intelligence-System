@@ -67,24 +67,38 @@ def clean_text(text):
 
 def prettify_label(label):
 
+    if '"' in label:
+
+        parts = label.split('"')
+
+        if len(parts) >= 2:
+
+            label = parts[1]
+
+            return label.strip()
+
     label = label.replace(
         'Highlight the parts (if any) of this contract related to ',
         ''
     )
 
-    label = label.replace('"', '')
-
-    if " Details:" in label:
-        label = label.split(" Details:")[0]
-
-    label = label.strip()
-
-    label = CLAUSE_MAP.get(
-        label,
-        label
+    label = label.replace(
+        'that should be reviewed by a lawyer.',
+        ''
     )
 
-    return label
+    label = label.replace(
+        'that should be reviewed by a lawyer',
+        ''
+    )
+
+    if " Details:" in label:
+
+        label = label.split(
+            " Details:"
+        )[0]
+
+    return label.strip()
 
 def positional_encoding(
     seq_len,
@@ -176,12 +190,17 @@ if st.button(
             prediction
         )
 
-        clause = label_encoder.inverse_transform(
+        raw_clause = label_encoder.inverse_transform(
             [pred_idx]
         )[0]
 
+        st.write(
+            "Raw Label:",
+            raw_clause
+        )
+
         clause = prettify_label(
-            clause
+            raw_clause
         )
 
         confidence = float(
