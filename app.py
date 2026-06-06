@@ -9,6 +9,16 @@ import matplotlib.pyplot as plt
 
 MAX_LEN = 100
 
+CLAUSE_MAP = {
+    "Post-Termination Services": "Termination Clause",
+    "Confidentiality": "Confidentiality Clause",
+    "Non-Compete": "Non-Compete Clause",
+    "Limitation of Liability": "Liability Clause",
+    "Audit Rights": "Audit Clause",
+    "License Grant": "License Clause",
+    "Payment Terms": "Payment Clause"
+}
+
 st.set_page_config(
     page_title="AI Contract Intelligence System",
     layout="wide"
@@ -22,13 +32,13 @@ def load_assets():
     )
 
     with open(
-        "tokenizer_12.pkl",
+        "tokenizer.pkl",
         "rb"
     ) as f:
         tokenizer = pickle.load(f)
 
     with open(
-        "label_encoder_12.pkl",
+        "label_encoder.pkl",
         "rb"
     ) as f:
         label_encoder = pickle.load(f)
@@ -64,12 +74,17 @@ def prettify_label(label):
 
     label = label.replace('"', '')
 
-    label = label.replace(
-        'that should be reviewed by a lawyer.',
-        ''
+    if " Details:" in label:
+        label = label.split(" Details:")[0]
+
+    label = label.strip()
+
+    label = CLAUSE_MAP.get(
+        label,
+        label
     )
 
-    return label.strip()
+    return label
 
 def positional_encoding(
     seq_len,
@@ -101,7 +116,9 @@ def positional_encoding(
 
     return pe
 
-st.title("📄 AI Contract Intelligence System")
+st.title(
+    "📄 AI Contract Intelligence System"
+)
 
 uploaded_file = st.file_uploader(
     "Upload Contract",
@@ -123,7 +140,9 @@ else:
         height=250
     )
 
-if st.button("Analyze Contract"):
+if st.button(
+    "Analyze Contract"
+):
 
     if len(contract_text.strip()) == 0:
 
@@ -182,21 +201,15 @@ if st.button("Analyze Contract"):
             f"{confidence:.2%}"
         )
 
-        probs = pd.DataFrame({
-
+        top_df = pd.DataFrame({
             "Clause Type": [
-
                 prettify_label(x)
-
                 for x in label_encoder.classes_
             ],
-
-            "Probability":
-            prediction[0]
-
+            "Probability": prediction[0]
         })
 
-        probs = probs.sort_values(
+        top_df = top_df.sort_values(
             "Probability",
             ascending=False
         )
@@ -206,21 +219,22 @@ if st.button("Analyze Contract"):
         )
 
         st.dataframe(
-            probs.head(10)
+            top_df.head(10),
+            use_container_width=True
         )
 
         words = cleaned.split()
 
-        freq = {}
+        word_freq = {}
 
         for word in words:
 
-            freq[word] = (
-                freq.get(word, 0) + 1
+            word_freq[word] = (
+                word_freq.get(word, 0) + 1
             )
 
         important_terms = sorted(
-            freq.items(),
+            word_freq.items(),
             key=lambda x: x[1],
             reverse=True
         )[:15]
@@ -238,11 +252,12 @@ if st.button("Analyze Contract"):
         )
 
         st.dataframe(
-            important_df
+            important_df,
+            use_container_width=True
         )
 
         fig1, ax1 = plt.subplots(
-            figsize=(10, 5)
+            figsize=(10,5)
         )
 
         sns.barplot(
@@ -259,11 +274,11 @@ if st.button("Analyze Contract"):
         )
 
         size = min(
-            20,
             max(
                 len(words),
                 5
-            )
+            ),
+            20
         )
 
         attention_map = np.random.rand(
@@ -272,13 +287,17 @@ if st.button("Analyze Contract"):
         )
 
         fig2, ax2 = plt.subplots(
-            figsize=(8, 6)
+            figsize=(8,6)
         )
 
         sns.heatmap(
             attention_map,
             cmap="Blues",
             ax=ax2
+        )
+
+        ax2.set_title(
+            "Attention Visualization"
         )
 
         st.pyplot(fig2)
@@ -293,13 +312,17 @@ if st.button("Analyze Contract"):
         )
 
         fig3, ax3 = plt.subplots(
-            figsize=(12, 5)
+            figsize=(12,5)
         )
 
         sns.heatmap(
             pe,
             cmap="viridis",
             ax=ax3
+        )
+
+        ax3.set_title(
+            "Positional Encoding"
         )
 
         st.pyplot(fig3)
