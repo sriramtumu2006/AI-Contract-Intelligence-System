@@ -32,13 +32,13 @@ def load_assets():
     )
 
     with open(
-        "tokenizer.pkl",
+        "tokenizer_12.pkl",
         "rb"
     ) as f:
         tokenizer = pickle.load(f)
 
     with open(
-        "label_encoder.pkl",
+        "label_encoder_12.pkl",
         "rb"
     ) as f:
         label_encoder = pickle.load(f)
