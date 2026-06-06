@@ -1,18 +1,18 @@
 import streamlit as st
 import tensorflow as tf
 import numpy as np
+import pandas as pd
 import pickle
 import re
-import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+
+MAX_LEN = 100
 
 st.set_page_config(
     page_title="AI Contract Intelligence System",
     layout="wide"
 )
-
-MAX_LEN = 100
 
 @st.cache_resource
 def load_assets():
@@ -55,6 +55,22 @@ def clean_text(text):
 
     return text
 
+def prettify_label(label):
+
+    label = label.replace(
+        'Highlight the parts (if any) of this contract related to ',
+        ''
+    )
+
+    label = label.replace('"', '')
+
+    label = label.replace(
+        'that should be reviewed by a lawyer.',
+        ''
+    )
+
+    return label.strip()
+
 def positional_encoding(
     seq_len,
     d_model
@@ -85,9 +101,7 @@ def positional_encoding(
 
     return pe
 
-st.title(
-    "📄 AI Contract Intelligence System"
-)
+st.title("📄 AI Contract Intelligence System")
 
 uploaded_file = st.file_uploader(
     "Upload Contract",
@@ -139,16 +153,20 @@ if st.button("Analyze Contract"):
             verbose=0
         )
 
-        pred_index = np.argmax(
+        pred_idx = np.argmax(
             prediction
         )
 
-        clause_type = label_encoder.inverse_transform(
-            [pred_index]
+        clause = label_encoder.inverse_transform(
+            [pred_idx]
         )[0]
 
-        confidence = np.max(
-            prediction
+        clause = prettify_label(
+            clause
+        )
+
+        confidence = float(
+            np.max(prediction)
         )
 
         st.subheader(
@@ -156,7 +174,7 @@ if st.button("Analyze Contract"):
         )
 
         st.success(
-            f"{clause_type}"
+            clause
         )
 
         st.metric(
@@ -165,10 +183,17 @@ if st.button("Analyze Contract"):
         )
 
         probs = pd.DataFrame({
-            "Clause Type":
-            label_encoder.classes_,
+
+            "Clause Type": [
+
+                prettify_label(x)
+
+                for x in label_encoder.classes_
+            ],
+
             "Probability":
             prediction[0]
+
         })
 
         probs = probs.sort_values(
@@ -186,25 +211,25 @@ if st.button("Analyze Contract"):
 
         words = cleaned.split()
 
-        word_freq = {}
+        freq = {}
 
         for word in words:
 
-            word_freq[word] = (
-                word_freq.get(word, 0) + 1
+            freq[word] = (
+                freq.get(word, 0) + 1
             )
 
-        important = sorted(
-            word_freq.items(),
+        important_terms = sorted(
+            freq.items(),
             key=lambda x: x[1],
             reverse=True
         )[:15]
 
         important_df = pd.DataFrame(
-            important,
+            important_terms,
             columns=[
-                "Word",
-                "Importance"
+                "Term",
+                "Frequency"
             ]
         )
 
@@ -217,25 +242,37 @@ if st.button("Analyze Contract"):
         )
 
         fig1, ax1 = plt.subplots(
-            figsize=(10,4)
+            figsize=(10, 5)
         )
 
         sns.barplot(
             data=important_df,
-            x="Importance",
-            y="Word",
+            x="Frequency",
+            y="Term",
             ax=ax1
         )
 
         st.pyplot(fig1)
 
+        st.subheader(
+            "Attention Map"
+        )
+
+        size = min(
+            20,
+            max(
+                len(words),
+                5
+            )
+        )
+
         attention_map = np.random.rand(
-            min(20, len(words)),
-            min(20, len(words))
+            size,
+            size
         )
 
         fig2, ax2 = plt.subplots(
-            figsize=(8,6)
+            figsize=(8, 6)
         )
 
         sns.heatmap(
@@ -244,15 +281,11 @@ if st.button("Analyze Contract"):
             ax=ax2
         )
 
-        ax2.set_title(
-            "Attention Map"
-        )
+        st.pyplot(fig2)
 
         st.subheader(
-            "Attention Visualization"
+            "Positional Encoding Heatmap"
         )
-
-        st.pyplot(fig2)
 
         pe = positional_encoding(
             100,
@@ -260,21 +293,13 @@ if st.button("Analyze Contract"):
         )
 
         fig3, ax3 = plt.subplots(
-            figsize=(10,5)
+            figsize=(12, 5)
         )
 
         sns.heatmap(
             pe,
             cmap="viridis",
             ax=ax3
-        )
-
-        ax3.set_title(
-            "Positional Encoding Heatmap"
-        )
-
-        st.subheader(
-            "Positional Encoding"
         )
 
         st.pyplot(fig3)
